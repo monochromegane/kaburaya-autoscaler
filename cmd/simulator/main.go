@@ -19,6 +19,7 @@ var (
 	rho    float64
 	lambda string
 	mu     string
+	delay  float64
 
 	outDir     string
 	params     string
@@ -32,6 +33,7 @@ func init() {
 	flag.Float64Var(&DT, "DT", 1.0, "DT")
 	flag.StringVar(&lambda, "lambda", "1.0", "Lambda (Number of arrival in UnitTime). Allow CSV style like 1.0,5,2.0,10,3.0")
 	flag.StringVar(&mu, "mu", "1.0", "Mu (Number of service in UnitTime). Allow CSV style like 1.0,5,2.0,10,3.0")
+	flag.Float64Var(&delay, "delay", 0.0, "The delay step until changing the number of servers")
 
 	flag.StringVar(&outDir, "dir", "out", "Output directory")
 	flag.StringVar(&params, "params", "params.csv", "File name for parameters")
@@ -61,43 +63,48 @@ func main() {
 	}
 
 	controller := autoscaler.NewKaburayaController(rho)
-	plant := NewPlant(int64(seed), DT, lambdas, mus)
+	plant := NewPlant(int64(seed), DT, lambdas, mus, delay)
 
-	lambda_, mu_, ts_, waiting := 0.0, 0.0, 0.0, 0
+	lambda_, mu_, ts_, waiting, server := 0.0, 0.0, 0.0, 0, 0.0
 	for i := 0; i < step; i++ {
 		s := controller.Calculate(lambda_, mu_, ts_)
-		lambda_, mu_, ts_, waiting = plant.Run(int(s))
-		fmt.Printf("Server: %.1f, Lambda: %.1f, Mu: %.1f, Ts: %.5f, Waiting: %d\n", s, lambda_, mu_, ts_, waiting)
-		fmt.Fprintf(fSimulation, "%f,%d,%f,%f,%f\n", s, waiting, ts_/DT, lambda_, mu_)
+		lambda_, mu_, ts_, waiting, server = plant.Run(int(s))
+		fmt.Printf("Server: %.1f [%.1f], Lambda: %.1f, Mu: %.1f, Ts: %.5f, Waiting: %d\n", s, server, lambda_, mu_, ts_, waiting)
+		fmt.Fprintf(fSimulation, "%f,%f,%d,%f,%f,%f\n", s, server, waiting, ts_/DT, lambda_, mu_)
 	}
 }
 
 type Plant struct {
 	DT    float64
 	model simulator.Model
+	delay autoscaler.Component
 }
 
-func NewPlant(seed int64, DT float64, lambda, mu func(int) float64) *Plant {
+func NewPlant(seed int64, DT float64, lambda, mu func(int) float64, delay float64) *Plant {
 	return &Plant{
 		DT:    DT,
 		model: simulator.NewMMSModel(seed, ToHighResolution(DT, lambda), ToHighResolution(DT, mu)),
+		delay: &autoscaler.Delay{Gamma: int(delay / DT)},
 	}
 }
 
-func (p *Plant) Run(s int) (float64, float64, float64, int) {
+func (p *Plant) Run(s int) (float64, float64, float64, int, float64) {
 	step := int(1.0 / p.DT)
 	responseTimes := []int{}
 	lambda := 0
 	mu := 0
 	waiting := 0
+	avgServer := 0.0
 	for i := 0; i < step; i++ {
-		arrival, _, waiting_, ts := p.model.Progress(s)
+		server := int(p.delay.Work(float64(s)))
+		arrival, _, waiting_, ts := p.model.Progress(server)
 		lambda += arrival
 		mu += len(ts)
 		waiting = waiting_
 		responseTimes = append(responseTimes, ts...)
+		avgServer = onlineAvg(server, i, avgServer)
 	}
-	return float64(lambda), float64(mu) / float64(s), average(responseTimes) * p.DT, waiting
+	return float64(lambda), float64(mu) / avgServer, average(responseTimes) * p.DT, waiting, avgServer
 }
 
 func average(xs []int) float64 {
@@ -156,14 +163,18 @@ func setup() (*os.File, *os.File, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	fmt.Fprintf(fParams, "seed,step,rho,DT\n")
-	fmt.Fprintf(fParams, "%d,%d,%f,%f\n", seed, step, rho, DT)
+	fmt.Fprintf(fParams, "seed,step,rho,DT,delay\n")
+	fmt.Fprintf(fParams, "%d,%d,%f,%f,%f\n", seed, step, rho, DT, delay)
 
 	fSimulation, err := os.OpenFile(filepath.Join(outDir, simulation), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		return nil, nil, err
 	}
-	fmt.Fprintf(fSimulation, "servers,waiting,averageResponseTime,lambda,mu\n")
+	fmt.Fprintf(fSimulation, "servers,delayedServers,waiting,averageResponseTime,lambda,mu\n")
 
 	return fParams, fSimulation, nil
+}
+
+func onlineAvg(x, n int, avg float64) float64 {
+	return (float64(n)*avg + float64(x)) / float64(n+1)
 }

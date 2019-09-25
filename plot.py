@@ -13,32 +13,35 @@ params      = np.loadtxt(args.path_params,     delimiter=",", skiprows=1)
 simulations = np.loadtxt(args.path_simulation, delimiter=",", skiprows=1)
 
 fig, axes = plt.subplots(3, 2, sharex=True, figsize=(16,9))
-_, _, rho, DT = params
-fig.suptitle(r'Simulation of AutoScaling [$DT={}$, $\rho={:.2f}$]'.format(DT, rho))
+_, _, rho, DT, delay = params
+fig.suptitle(r'Simulation of AutoScaling [$DT={}$, $\rho={:.2f}$, $Delay={}$]'.format(DT, rho, delay))
 
 servers = simulations[:, 0]
-axes[0,0].plot(servers, color='C1')
+axes[0,0].plot(servers, label='Servers(Instruction)', color='C1', linestyle='dashed')
+delayed_servers = simulations[:, 1]
+axes[0,0].plot(delayed_servers, label='Servers(Delayed)', color='C1')
+axes[0,0].legend()
 axes[0,0].grid()
 axes[0,0].set_ylim(0.0)
 axes[0,0].set_ylabel('Servers')
 
-waitings = simulations[:, 1]
+waitings = simulations[:, 2]
 axes[1,0].plot(waitings, color='C3')
 axes[1,0].grid()
 axes[1,0].set_ylabel('Waiting')
 
-responseTimes = simulations[:, 2]
+responseTimes = simulations[:, 3]
 axes[2,0].plot(responseTimes, color='C2')
 axes[2,0].grid()
 axes[2,0].set_ylabel('Response time')
 
-lambdas = simulations[:, 3]
+lambdas = simulations[:, 4]
 axes[0,1].plot(lambdas, color='C4')
 axes[0,1].set_ylim(0.0)
 axes[0,1].grid()
 axes[0,1].set_ylabel(r'$\lambda$')
 
-mus = simulations[:, 4]
+mus = simulations[:, 5]
 axes[1,1].plot(mus, color='C5')
 axes[1,1].set_ylim(0.0)
 axes[1,1].grid()
