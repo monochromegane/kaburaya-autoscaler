@@ -20,6 +20,7 @@ var (
 	lambda string
 	mu     string
 	delay  float64
+	cDelay float64
 
 	outDir     string
 	params     string
@@ -33,7 +34,8 @@ func init() {
 	flag.Float64Var(&DT, "DT", 1.0, "DT")
 	flag.StringVar(&lambda, "lambda", "1.0", "Lambda (Number of arrival in UnitTime). Allow CSV style like 1.0,5,2.0,10,3.0")
 	flag.StringVar(&mu, "mu", "1.0", "Mu (Number of service in UnitTime). Allow CSV style like 1.0,5,2.0,10,3.0")
-	flag.Float64Var(&delay, "delay", 0.0, "The delay step until changing the number of servers")
+	flag.Float64Var(&delay, "delay", 0.0, "The 'actual' delay step until changing the number of servers")
+	flag.Float64Var(&cDelay, "predicted-delay", 0.0, "The 'predicted' delay step until changing the number of servers")
 
 	flag.StringVar(&outDir, "dir", "out", "Output directory")
 	flag.StringVar(&params, "params", "params.csv", "File name for parameters")
@@ -62,7 +64,7 @@ func main() {
 		panic(err)
 	}
 
-	controller := autoscaler.NewKaburayaController(rho)
+	controller := autoscaler.NewKaburayaController(rho, cDelay)
 	plant := NewPlant(int64(seed), DT, lambdas, mus, delay)
 
 	lambda_, mu_, ts_, waiting, server := 0.0, 0.0, 0.0, 0, 0.0
@@ -84,7 +86,7 @@ func NewPlant(seed int64, DT float64, lambda, mu func(int) float64, delay float6
 	return &Plant{
 		DT:    DT,
 		model: simulator.NewMMSModel(seed, ToHighResolution(DT, lambda), ToHighResolution(DT, mu)),
-		delay: &autoscaler.Delay{Gamma: int(delay / DT)},
+		delay: autoscaler.NewDelay(int(delay / DT)),
 	}
 }
 
@@ -163,8 +165,8 @@ func setup() (*os.File, *os.File, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	fmt.Fprintf(fParams, "seed,step,rho,DT,delay\n")
-	fmt.Fprintf(fParams, "%d,%d,%f,%f,%f\n", seed, step, rho, DT, delay)
+	fmt.Fprintf(fParams, "seed,step,rho,DT,delay,predictedDelay\n")
+	fmt.Fprintf(fParams, "%d,%d,%f,%f,%f,%f\n", seed, step, rho, DT, delay, cDelay)
 
 	fSimulation, err := os.OpenFile(filepath.Join(outDir, simulation), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {

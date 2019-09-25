@@ -22,10 +22,14 @@ type Delay struct {
 	queue *list.List
 }
 
-func (c *Delay) Work(x float64) float64 {
-	if c.queue == nil {
-		c.queue = list.New()
+func NewDelay(gamma int) *Delay {
+	return &Delay{
+		Gamma: gamma,
+		queue: list.New(),
 	}
+}
+
+func (c *Delay) Work(x float64) float64 {
 	c.queue.PushBack(x)
 	if c.queue.Len() <= c.Gamma {
 		return 0.0
@@ -35,4 +39,14 @@ func (c *Delay) Work(x float64) float64 {
 
 	y, _ := elem.Value.(float64)
 	return y
+}
+
+func (c *Delay) list() []float64 {
+	queue := make([]float64, c.Gamma)
+	i := 0
+	for e := c.queue.Back(); e != nil; e = e.Prev() {
+		queue[c.Gamma-1-i] = e.Value.(float64)
+		i++
+	}
+	return queue
 }
