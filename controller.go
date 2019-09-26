@@ -49,7 +49,7 @@ func (c *KaburayaController) predictDelayedLambda(lambda_, mu_ float64) float64 
 	delayedLambda := 0.0
 	servers := c.delay.list()
 	for i, s := range servers {
-		delayedLambda += math.Max(lambda_-(mu_*(s*c.weights[i])), 0.0)
+		delayedLambda += math.Max((lambda_-(mu_*s))*c.weights[i], 0.0)
 	}
 	return delayedLambda
 }
