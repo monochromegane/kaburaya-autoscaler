@@ -8,6 +8,7 @@ type KaburayaController struct {
 	Rho      float64
 	Mu       float64
 	Lambda   float64
+	S        float64
 	cnt      uint
 	actuator Component
 	delay    *Delay
@@ -39,17 +40,19 @@ func (c *KaburayaController) Calculate(lambda_, mu_, ts_ float64) float64 {
 	c.Lambda = lambda_
 	c.Mu = onlineAvgFloat(math.Max(mu_, 1.0/ts_), c.cnt, c.Mu)
 	c.cnt++
-	s := (c.Lambda + c.predictDelayedLambda(c.Lambda, c.Mu)) / (c.Rho * c.Mu)
+	s := (c.Lambda +
+		c.predictDelayedLambda([]float64{c.S}, []float64{1.0}, c.Lambda, c.Mu) +
+		c.predictDelayedLambda(c.delay.list(), c.weights, c.Lambda, c.Mu)) / (c.Rho * c.Mu)
 	s = c.actuator.Work(s)
+	c.S = s
 	c.delay.Work(s)
 	return s
 }
 
-func (c *KaburayaController) predictDelayedLambda(lambda_, mu_ float64) float64 {
+func (c *KaburayaController) predictDelayedLambda(servers, weights []float64, lambda_, mu_ float64) float64 {
 	delayedLambda := 0.0
-	servers := c.delay.list()
 	for i, s := range servers {
-		delayedLambda += math.Max((lambda_-(mu_*s))*c.weights[i], 0.0)
+		delayedLambda += math.Max((lambda_-(mu_*s))*weights[i], 0.0)
 	}
 	return delayedLambda
 }
