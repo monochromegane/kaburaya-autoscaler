@@ -21,7 +21,8 @@ var (
 	lambda string
 	mu     string
 	delay  float64
-	cDelay float64
+	oDelay float64
+	iDelay float64
 
 	outDir     string
 	params     string
@@ -35,8 +36,9 @@ func init() {
 	flag.Float64Var(&DT, "DT", 1.0, "DT")
 	flag.StringVar(&lambda, "lambda", "1.0", "Lambda (Number of arrival in UnitTime). Allow CSV style like 1.0,5,2.0,10,3.0")
 	flag.StringVar(&mu, "mu", "1.0", "Mu (Number of service in UnitTime). Allow CSV style like 1.0,5,2.0,10,3.0")
-	flag.Float64Var(&delay, "delay", 0.0, "The 'actual' delay step until changing the number of servers")
-	flag.Float64Var(&cDelay, "predicted-delay", 0.0, "The 'predicted' delay step until changing the number of servers")
+	flag.Float64Var(&delay, "delay", 0.0, "The 'actual out' delay step until changing the number of servers")
+	flag.Float64Var(&oDelay, "out-delay", 0.0, "The 'predicted out' delay step until changing the number of servers")
+	flag.Float64Var(&iDelay, "in-delay", 1.0, "The 'in' delay step until calculating the number of servers")
 
 	flag.StringVar(&outDir, "dir", "out", "Output directory")
 	flag.StringVar(&params, "params", "params.csv", "File name for parameters")
@@ -65,7 +67,7 @@ func main() {
 		panic(err)
 	}
 
-	controller := autoscaler.NewKaburayaController(rho, cDelay)
+	controller := autoscaler.NewKaburayaController(rho, iDelay, oDelay)
 	plant := NewPlant(int64(seed), DT, lambdas, mus, delay)
 
 	lambda_, mu_, ts_, waiting, server := 0.0, 0.0, 0.0, 0, 0.0
@@ -173,8 +175,8 @@ func setup() (*os.File, *os.File, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	fmt.Fprintf(fParams, "seed,step,rho,DT,delay,predictedDelay\n")
-	fmt.Fprintf(fParams, "%d,%d,%f,%f,%f,%f\n", seed, step, rho, DT, delay, cDelay)
+	fmt.Fprintf(fParams, "seed,step,rho,DT,delay,oDelay,iDelay\n")
+	fmt.Fprintf(fParams, "%d,%d,%f,%f,%f,%f,%f\n", seed, step, rho, DT, delay, oDelay, iDelay)
 
 	fSimulation, err := os.OpenFile(filepath.Join(outDir, simulation), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {

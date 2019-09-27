@@ -8,14 +8,28 @@ type KaburayaController struct {
 	Rho      float64
 	Mu       float64
 	Lambda   float64
-	S        float64
 	cnt      uint
 	actuator Component
-	delay    *Delay
-	weights  []float64
+	iDelay   *Delay
+	iWeights []float64
+	oDelay   *Delay
+	oWeights []float64
 }
 
-func NewKaburayaController(rho, delay float64) *KaburayaController {
+func NewKaburayaController(rho, iDelay, oDelay float64) *KaburayaController {
+	id, iw := newDelayWithWeight(iDelay)
+	od, ow := newDelayWithWeight(oDelay)
+	return &KaburayaController{
+		Rho:      rho,
+		actuator: &RoundAndMinimum{Minimum: 1.0},
+		iDelay:   id,
+		iWeights: iw,
+		oDelay:   od,
+		oWeights: ow,
+	}
+}
+
+func newDelayWithWeight(delay float64) (*Delay, []float64) {
 	gamma := int(math.Ceil(delay))
 	weights := make([]float64, gamma)
 	for i := 0; i < gamma; i++ {
@@ -24,12 +38,7 @@ func NewKaburayaController(rho, delay float64) *KaburayaController {
 	if f := math.Floor(delay); gamma != int(f) {
 		weights[0] = delay - f
 	}
-	return &KaburayaController{
-		Rho:      rho,
-		actuator: &RoundAndMinimum{Minimum: 1.0},
-		delay:    NewDelay(gamma),
-		weights:  weights,
-	}
+	return NewDelay(gamma), weights
 }
 
 func (c *KaburayaController) Calculate(lambda_, mu_, ts_ float64) float64 {
@@ -41,11 +50,11 @@ func (c *KaburayaController) Calculate(lambda_, mu_, ts_ float64) float64 {
 	c.Mu = onlineAvgFloat(math.Max(mu_, 1.0/ts_), c.cnt, c.Mu)
 	c.cnt++
 	s := (c.Lambda +
-		c.predictDelayedLambda([]float64{c.S}, []float64{1.0}, c.Lambda, c.Mu) +
-		c.predictDelayedLambda(c.delay.list(), c.weights, c.Lambda, c.Mu)) / (c.Rho * c.Mu)
+		c.predictDelayedLambda(c.iDelay.list(), c.iWeights, c.Lambda, c.Mu) +
+		c.predictDelayedLambda(c.oDelay.list(), c.oWeights, c.Lambda, c.Mu)) / (c.Rho * c.Mu)
 	s = c.actuator.Work(s)
-	c.S = s
-	c.delay.Work(s)
+	c.iDelay.Work(s)
+	c.oDelay.Work(s)
 	return s
 }
 

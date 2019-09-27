@@ -13,8 +13,8 @@ params      = np.loadtxt(args.path_params,     delimiter=",", skiprows=1)
 simulations = np.loadtxt(args.path_simulation, delimiter=",", skiprows=1)
 
 fig, axes = plt.subplots(3, 2, sharex=True, figsize=(16,9))
-_, _, rho, DT, delay, cdelay = params
-fig.suptitle(r'Simulation of AutoScaling [$DT={}$, $\rho={:.2f}$, $Delay(Predicted)={}({})$]'.format(DT, rho, delay, cdelay))
+_, _, rho, DT, delay, odelay, idelay = params
+fig.suptitle(r'Simulation of AutoScaling [$DT={}$, $\rho={:.2f}$, $Delay(In,Out)={}({},{})$]'.format(DT, rho, delay, idelay ,odelay))
 
 ideals = simulations[:, 0]
 axes[0,0].plot(ideals, label='Ideal', color='C0')
