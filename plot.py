@@ -51,7 +51,7 @@ axes[1,1].grid()
 axes[1,1].set_ylabel(r'$\mu$')
 
 maximum = np.maximum(mus, 1.0/(responseTimes*DT))
-avg = [np.average(maximum[0:i+1]) for i, m in enumerate(maximum)]
+avg = [np.average(maximum[0:i+1][~np.isnan(maximum[0:i+1])]) for i, m in enumerate(maximum)]
 axes[2,1].plot(mus, color='C5', label=r'$\mu$', linestyle='dashed', linewidth=1.0)
 axes[2,1].plot(1.0/(responseTimes*DT), color='C2', label=r'$1/T_s$', linestyle='dashed', linewidth=1.0)
 axes[2,1].plot(avg, color='C6', label=r'average(max($\mu$, $1/T_s$))', linewidth=3.0)
