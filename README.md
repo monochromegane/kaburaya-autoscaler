@@ -13,7 +13,6 @@ An autoscaler controller based on queuing theory.
 ## Simulation
 
 ```sh
-$ go run cmd/simulator/
 $ go run cmd/simulator/main.go --step 500 \
                                --DT 0.00001 \
                                --lambda 20,100,5000,200,10000,300,15000,400,10000 \
