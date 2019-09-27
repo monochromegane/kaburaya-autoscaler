@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -71,9 +72,16 @@ func main() {
 	for i := 0; i < step; i++ {
 		s := controller.Calculate(lambda_, mu_, ts_)
 		lambda_, mu_, ts_, waiting, server = plant.Run(int(s))
-		fmt.Printf("Server: %.1f [%.1f], Lambda: %.1f, Mu: %.1f, Ts: %.5f, Waiting: %d\n", s, server, lambda_, mu_, ts_, waiting)
-		fmt.Fprintf(fSimulation, "%f,%f,%d,%f,%f,%f\n", s, server, waiting, ts_/DT, lambda_, mu_)
+		ideal := idealServer(i, rho, lambdas, mus)
+		fmt.Printf("Ideal: %.1f, Server: %.1f [%.1f], Lambda: %.1f, Mu: %.1f, Ts: %.5f, Waiting: %d\n", ideal, s, server, lambda_, mu_, ts_, waiting)
+		fmt.Fprintf(fSimulation, "%f,%f,%f,%d,%f,%f,%f\n", ideal, s, server, waiting, ts_/DT, lambda_, mu_)
 	}
+}
+
+func idealServer(t int, rho float64, lambdas, mus func(int) float64) float64 {
+	lambda := lambdas(t)
+	mu := mus(t)
+	return math.Max(math.Round(lambda/(rho*mu)), 1.0)
 }
 
 type Plant struct {
@@ -172,7 +180,7 @@ func setup() (*os.File, *os.File, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	fmt.Fprintf(fSimulation, "servers,delayedServers,waiting,averageResponseTime,lambda,mu\n")
+	fmt.Fprintf(fSimulation, "idealServers,servers,delayedServers,waiting,averageResponseTime,lambda,mu\n")
 
 	return fParams, fSimulation, nil
 }
