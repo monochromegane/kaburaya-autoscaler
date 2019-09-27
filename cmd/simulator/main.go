@@ -76,7 +76,7 @@ func main() {
 		lambda_, mu_, ts_, waiting, server = plant.Run(int(s))
 		ideal := idealServer(i, rho, lambdas, mus)
 		fmt.Printf("Ideal: %.1f, Server: %.1f [%.1f], Lambda: %.1f, Mu: %.1f, Ts: %.5f, Waiting: %d\n", ideal, s, server, lambda_, mu_, ts_, waiting)
-		fmt.Fprintf(fSimulation, "%f,%f,%f,%d,%f,%f,%f\n", ideal, s, server, waiting, ts_/DT, lambda_, mu_)
+		fmt.Fprintf(fSimulation, "%f,%f,%f,%d,%f,%f,%f\n", ideal, s, server, waiting, ts_, lambda_, mu_)
 	}
 }
 
